@@ -1,11 +1,10 @@
 Package: mondrian
 Type: Package
-Title: What the Package Does (Title Case)
+Title: Generates plots in the style of Piet Mondrian
 Version: 0.1.0
-Author: Who wrote it
+Author: Brent Schneeman
 Maintainer: The package maintainer <yourself@somewhere.net>
-Description: More about what it does (maybe more than one line)
-    Use four spaces when indenting paragraphs within the Description.
+Description: Turning http://jef.works/art-with-code/portfolio/20180720_mondrian/ into a package
 License: What license is it under?
 Encoding: UTF-8
 LazyData: true
