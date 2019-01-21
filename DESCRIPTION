@@ -8,3 +8,5 @@ Description: Turning http://jef.works/art-with-code/portfolio/20180720_mondrian/
 License: What license is it under?
 Encoding: UTF-8
 LazyData: true
+URL: https://github.com/schnee/mondrian
+BugReports: https://github.com/schnee/mondrian/issues
