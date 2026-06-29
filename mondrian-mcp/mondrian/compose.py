@@ -76,35 +76,22 @@ def compose(
     y_positions = sorted(rng.sample(range(1, max_lines_y + 1), n_lines_y))
     y = [yi * min_dist for yi in y_positions]
 
-    # --- Line widths ---
-    lw_min = round(min(width, height) / 20)
-    lw_max = round(min(width, height) / 5)
-    lw_min = max(1, lw_min)
-    lw_max = max(lw_min, lw_max)
-
-    if fixed_lines:
-        line_width_x = [lw_min] * n_lines_x
-        line_width_y = [lw_min] * n_lines_y
-    else:
-        line_width_x = [rng.randint(lw_min, lw_max) for _ in range(n_lines_x)]
-        line_width_y = [rng.randint(lw_min, lw_max) for _ in range(n_lines_y)]
+    # --- Border width for colored polygons (matches R: round(min/20)) ---
+    # This is the stroke on each colored rect, not separate line rectangles.
+    border_lwd = max(1, round(min(width, height) / 20))
 
     # --- Random edge extension (four independent coin flips) ---
     if rng.random() < 0.5:
         x = [0] + x
-        line_width_x = [0] + line_width_x
     if rng.random() < 0.5:
         x = x + [width]
-        line_width_x = line_width_x + [0]
     if rng.random() < 0.5:
         y = [0] + y
-        line_width_y = [0] + line_width_y
     if rng.random() < 0.5:
         y = y + [height]
-        line_width_y = line_width_y + [0]
 
     # --- Build SVG ---
-    svg = _build_svg(width, height, x, y, line_width_x, line_width_y, rng)
+    svg = _build_svg(width, height, x, y, border_lwd, rng)
 
     if output_format == "png":
         import cairosvg  # lazy import — requires libcairo system library
@@ -126,23 +113,35 @@ def _build_svg(
     height: int,
     x: list[int],
     y: list[int],
-    line_width_x: list[int],
-    line_width_y: list[int],
+    border_lwd: int,
     rng: random.Random,
 ) -> str:
     """Construct the SVG string for a Mondrian composition.
 
-    Drawing order:
+    Drawing order matches the R original:
     1. White background rect
-    2. Cell fill rectangles (overlapping, in grid iteration order)
-    3. Grid line rectangles (drawn on top of fills)
+    2. Thin grid lines (abline equivalent) drawn first
+    3. Colored polygon rects with thick black stroke drawn on top
+       — later rects overwrite earlier ones (the key organic aesthetic)
     """
-    rects: list[str] = []
+    elements: list[str] = []
 
     # Background
-    rects.append(f'<rect x="0" y="0" width="{width}" height="{height}" fill="white"/>')
+    elements.append(f'<rect x="0" y="0" width="{width}" height="{height}" fill="white"/>')
 
-    # --- Cell fills (overlapping draw order — the key aesthetic property) ---
+    # --- Thin grid lines first (abline equivalent, 1px) ---
+    for xi in x:
+        elements.append(
+            f'<line x1="{xi}" y1="0" x2="{xi}" y2="{height}" '
+            f'stroke="black" stroke-width="1"/>'
+        )
+    for yi in y:
+        elements.append(
+            f'<line x1="0" y1="{yi}" x2="{width}" y2="{yi}" '
+            f'stroke="black" stroke-width="1"/>'
+        )
+
+    # --- Colored polygons on top, with thick border (matches R polygon lwd) ---
     # For each (x[j], y[i]) pair, sample a random *other* x and y position
     # as the opposite corner. Later rects overwrite earlier ones.
     for i in range(len(y)):
@@ -163,34 +162,15 @@ def _build_svg(
             rh = abs(y2 - y[i])
 
             if rw > 0 and rh > 0:
-                rects.append(
+                elements.append(
                     f'<rect x="{rx}" y="{ry}" width="{rw}" height="{rh}" '
-                    f'fill="{color}" stroke="black" stroke-width="1"/>'
+                    f'fill="{color}" stroke="black" stroke-width="{border_lwd}"/>'
                 )
 
-    # --- Grid lines as filled rectangles (centered on grid position) ---
-    # Vertical lines
-    for xi, lw in zip(x, line_width_x):
-        if lw <= 0:
-            continue
-        rx = xi - lw // 2
-        rects.append(
-            f'<rect x="{rx}" y="0" width="{lw}" height="{height}" fill="black"/>'
-        )
-
-    # Horizontal lines
-    for yi, lw in zip(y, line_width_y):
-        if lw <= 0:
-            continue
-        ry = yi - lw // 2
-        rects.append(
-            f'<rect x="0" y="{ry}" width="{width}" height="{lw}" fill="black"/>'
-        )
-
-    elements = "\n  ".join(rects)
+    svg_elements = "\n  ".join(elements)
     return (
         f'<svg xmlns="http://www.w3.org/2000/svg" '
         f'viewBox="0 0 {width} {height}" '
         f'width="{width}" height="{height}">\n  '
-        f"{elements}\n</svg>"
+        f"{svg_elements}\n</svg>"
     )
