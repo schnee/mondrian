@@ -1,3 +1,9 @@
 .Rhistory
 .RData
 .Rproj.user
+
+# Python
+mondrian-mcp/.venv/
+mondrian-mcp/__pycache__/
+mondrian-mcp/**/__pycache__/
+mondrian-mcp/**/*.pyc
