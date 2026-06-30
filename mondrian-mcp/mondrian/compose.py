@@ -76,9 +76,11 @@ def compose(
     y_positions = sorted(rng.sample(range(1, max_lines_y + 1), n_lines_y))
     y = [yi * min_dist for yi in y_positions]
 
-    # --- Border width for colored polygons (matches R: round(min/20)) ---
-    # This is the stroke on each colored rect, not separate line rectangles.
-    border_lwd = max(1, round(min(width, height) / 20))
+    # --- Border width for colored polygons ---
+    # Divisor 60 yields ~1.7% of min(W,H), matching real Mondrian proportions
+    # and ensuring the stroke never obliterates the smallest cells on narrow
+    # canvases (e.g. header_band 960×120 → border_lwd=2, min_dist=6).
+    border_lwd = max(1, round(min(width, height) / 60))
 
     # --- Random edge extension (four independent coin flips) ---
     if rng.random() < 0.5:

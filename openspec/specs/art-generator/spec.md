@@ -22,15 +22,27 @@ The system SHALL generate a Mondrian-style rectilinear composition as an SVG str
 - **THEN** the two SVG strings are not required to be identical
 
 ### Requirement: Grid lines rendered as filled rectangles
-The system SHALL render horizontal and vertical grid lines as filled black `<rect>` elements centered on their grid position, with variable width controlled by the line weight parameter.
+The system SHALL render horizontal and vertical grid lines as SVG `stroke` on colored `<rect>` elements, with stroke-width computed as `max(1, round(min(width, height) / 60))`. This produces line weight proportional to ~1.7% of the minimum canvas dimension, consistent with real Mondrian painting proportions and ensuring the stroke never obliterates the smallest colored cells on any supported placement preset.
 
 #### Scenario: Vertical line rendered as rectangle
 - **WHEN** a vertical line at x=100 with weight 8 is drawn on a 400px canvas
 - **THEN** the SVG contains a `<rect>` with `x="96"`, `width="8"`, `y="0"`, `height="400"`, `fill="black"`
 
-#### Scenario: Line weight varies across lines
-- **WHEN** `fixedLines=False` and the canvas is at least 100px in its smallest dimension
-- **THEN** the SVG contains vertical and horizontal line rectangles with at least two distinct width values
+#### Scenario: Line weight scales with canvas minimum dimension
+- **WHEN** `compose(width=960, height=120)` is called
+- **THEN** the SVG `stroke-width` on colored rects equals `2` (i.e., `round(120 / 60)`)
+
+#### Scenario: Line weight scales correctly for square canvas
+- **WHEN** `compose(width=400, height=400)` is called
+- **THEN** the SVG `stroke-width` on colored rects equals `7` (i.e., `round(400 / 60)`)
+
+#### Scenario: Line weight never exceeds half the minimum cell size
+- **WHEN** `compose()` is called with any placement preset dimensions and `density="normal"`
+- **THEN** the `stroke-width` value is strictly less than `min_dist / 2`, where `min_dist = round(min(width, height) / 20)`, ensuring colored fill remains visible in the smallest cells
+
+#### Scenario: Line weight varies across canvas sizes for organic feel
+- **WHEN** compositions are generated at `header_band` (960×120), `square` (400×400), and `full_bleed` (960×540) dimensions
+- **THEN** the `stroke-width` values differ across the three outputs, reflecting proportional scaling to each canvas
 
 ### Requirement: Cell fills use weighted classic Mondrian palette
 The system SHALL fill grid cells using the classic Mondrian palette — red (`#c70000`), yellow (`#f4b600`), blue (`#2d2bb4`), black, and white — with white being the most probable fill (weight 0.50) and black the least probable (weight 0.05).

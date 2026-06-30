@@ -94,21 +94,33 @@ def test_svg_contains_correct_viewbox():
 # --- 6.5: Density parameter produces different line counts ---
 
 def test_dense_has_more_rects_than_sparse():
-    # Use a large canvas to make the difference statistically reliable
-    svg_sparse, _ = compose(width=800, height=800, seed=42, density="sparse")
-    svg_dense, _ = compose(width=800, height=800, seed=42, density="dense")
-    sparse_count = svg_sparse.count("<rect")
-    dense_count = svg_dense.count("<rect")
-    assert dense_count > sparse_count, (
-        f"Expected dense ({dense_count}) > sparse ({sparse_count})"
+    # Average rect count across many seeds — dense should win on average.
+    # (A single seed can go either way due to the weighted line-count sampler.)
+    sparse_total = 0
+    dense_total = 0
+    for seed in range(30):
+        svg_sparse, _ = compose(width=800, height=800, seed=seed, density="sparse")
+        svg_dense, _ = compose(width=800, height=800, seed=seed, density="dense")
+        sparse_total += svg_sparse.count("<rect")
+        dense_total += svg_dense.count("<rect")
+    assert dense_total > sparse_total, (
+        f"Expected dense total ({dense_total}) > sparse total ({sparse_total}) over 30 seeds"
     )
 
 
 def test_normal_density_is_between_sparse_and_dense():
-    svg_sparse, _ = compose(width=800, height=800, seed=42, density="sparse")
-    svg_normal, _ = compose(width=800, height=800, seed=42, density="normal")
-    svg_dense, _ = compose(width=800, height=800, seed=42, density="dense")
-    assert svg_sparse.count("<rect") <= svg_normal.count("<rect") <= svg_dense.count("<rect")
+    # Same reasoning: compare averages, not a single seed.
+    sparse_total = dense_total = normal_total = 0
+    for seed in range(30):
+        svg_sparse, _ = compose(width=800, height=800, seed=seed, density="sparse")
+        svg_normal, _ = compose(width=800, height=800, seed=seed, density="normal")
+        svg_dense, _ = compose(width=800, height=800, seed=seed, density="dense")
+        sparse_total += svg_sparse.count("<rect")
+        normal_total += svg_normal.count("<rect")
+        dense_total += svg_dense.count("<rect")
+    assert sparse_total <= normal_total <= dense_total, (
+        f"Expected sparse ({sparse_total}) <= normal ({normal_total}) <= dense ({dense_total}) over 30 seeds"
+    )
 
 
 # --- 6.6: Edge extension produces lines at x=0 or x=width ---
@@ -133,3 +145,46 @@ def test_fixed_lines_mode():
     svg, _ = compose(width=400, height=400, seed=5, fixed_lines=True)
     # Just verify it runs without error and produces valid SVG
     assert 'viewBox="0 0 400 400"' in svg
+
+
+# --- Border line weight tests (fix-border-line-weight change) ---
+
+def _extract_stroke_width(svg: str) -> int:
+    """Return the stroke-width value from the first colored rect in the SVG.
+
+    Grid <line> elements use stroke-width="1"; we want the stroke-width on
+    the colored <rect> elements, which comes after the line elements.
+    """
+    # Find stroke-width on a <rect> element (not on a <line>)
+    m = re.search(r'<rect\b[^/]*stroke-width="(\d+)"', svg)
+    assert m is not None, "No rect with stroke-width found in SVG"
+    return int(m.group(1))
+
+
+def test_border_lwd_header_band():
+    """960×120 canvas: border_lwd = max(1, round(120 / 60)) = 2."""
+    svg, _ = compose(width=960, height=120, seed=1)
+    assert _extract_stroke_width(svg) == 2
+
+
+def test_border_lwd_square():
+    """400×400 canvas: border_lwd = max(1, round(400 / 60)) = 7."""
+    svg, _ = compose(width=400, height=400, seed=1)
+    assert _extract_stroke_width(svg) == 7
+
+
+@pytest.mark.parametrize("width,height", [
+    (960, 120),   # header_band
+    (200, 540),   # left_panel
+    (960, 540),   # full_bleed
+    (400, 400),   # square
+])
+def test_border_lwd_never_exceeds_half_min_dist(width: int, height: int):
+    """stroke-width must be < min_dist / 2 so smallest cells remain visible."""
+    import math
+    min_dist = max(1, round(min(width, height) / 20))
+    svg, _ = compose(width=width, height=height, seed=42)
+    stroke = _extract_stroke_width(svg)
+    assert stroke < min_dist / 2, (
+        f"{width}×{height}: stroke-width={stroke} >= min_dist/2={min_dist/2:.1f}"
+    )
