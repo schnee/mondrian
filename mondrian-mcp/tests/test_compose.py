@@ -8,7 +8,8 @@ from PIL import Image
 
 from mondrian.compose import compose
 
-VALID_COLORS = {"#c70000", "#f4b600", "#2d2bb4", "black", "white"}
+# Black is intentionally excluded from cell fills (grid lines only).
+VALID_COLORS = {"#c70000", "#f4b600", "#2d2bb4", "white"}
 
 
 # --- 6.1: Seeded generation is reproducible ---
@@ -46,6 +47,18 @@ def test_only_valid_palette_colors():
     # Filter out 'black' used for line rects (also valid) and 'white' background
     for fill in fills:
         assert fill in VALID_COLORS, f"Unexpected color: {fill}"
+
+
+def test_black_never_appears_as_cell_fill():
+    """fill='black' must never appear on any cell rect across many seeds."""
+    for seed in range(50):
+        svg, _ = compose(width=400, height=400, seed=seed)
+        fills = re.findall(r'fill="([^"]+)"', svg)
+        # Skip the background white rect (first fill); check the rest
+        cell_fills = fills[1:]
+        assert "black" not in cell_fills, (
+            f"seed={seed}: found fill='black' in cell rects"
+        )
 
 
 def test_white_is_most_common_fill():

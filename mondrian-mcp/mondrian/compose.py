@@ -13,10 +13,12 @@ overwriting that gives the output an organic, painted feel.
 import random
 from typing import Literal
 
-# Classic Mondrian palette: red, yellow, blue, black, white
-_COLORS = ["#c70000", "#f4b600", "#2d2bb4", "black", "white"]
-# Matching weights: white most likely (0.50), black least likely (0.05)
-_WEIGHTS = [0.15, 0.15, 0.15, 0.05, 0.50]
+# Classic Mondrian palette: red, yellow, blue, white
+# Black is intentionally excluded from fills — it appears only as grid line
+# strokes, consistent with Mondrian's historical painting practice.
+_COLORS = ["#c70000", "#f4b600", "#2d2bb4", "white"]
+# Matching weights: white most likely (0.55), primaries equal (0.15 each)
+_WEIGHTS = [0.15, 0.15, 0.15, 0.55]
 
 # Density multipliers applied to minDistApart
 _DENSITY_MULTIPLIERS: dict[str, float] = {
