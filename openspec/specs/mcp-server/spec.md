@@ -7,15 +7,27 @@ TBD — Exposes the Mondrian art generator as an MCP tool, runnable as a standal
 ## Requirements
 
 ### Requirement: Expose generate_mondrian as an MCP tool
-The system SHALL expose a single MCP tool named `generate_mondrian` that accepts art generation parameters and returns PNG output with reproducibility metadata.
+The system SHALL expose a single MCP tool named `generate_mondrian` that accepts art generation parameters and returns the PNG as an MCP `ImageContent` block with reproducibility metadata in `structured_content`.
 
 #### Scenario: Tool is discoverable via MCP
 - **WHEN** an MCP client connects to the server and lists available tools
 - **THEN** `generate_mondrian` appears in the tool list with a description and input schema
 
-#### Scenario: Tool returns PNG and metadata
+#### Scenario: Tool returns ImageContent block
 - **WHEN** `generate_mondrian` is called with valid parameters
-- **THEN** the response includes base64-encoded PNG bytes and a `seed` field containing the integer seed used for generation
+- **THEN** `result.content` contains exactly one item with `type="image"` and `mimeType="image/png"`
+
+#### Scenario: PNG data is valid and non-empty
+- **WHEN** `generate_mondrian` is called with valid parameters
+- **THEN** `result.content[0].data` is a non-empty base64 string that decodes to a valid PNG
+
+#### Scenario: Structured metadata is machine-readable
+- **WHEN** `generate_mondrian(placement="square", seed=42)` is called
+- **THEN** `result.structured_content` contains `{"seed": 42, "width": 400, "height": 400}`
+
+#### Scenario: No png_base64 key in response
+- **WHEN** `generate_mondrian` is called with valid parameters
+- **THEN** `result.structured_content` does NOT contain a `png_base64` key
 
 ### Requirement: Tool accepts placement presets
 The system SHALL accept a `placement` parameter that maps to standard (width, height) dimensions for common presentation use cases. Explicit `width` and `height` parameters SHALL override preset dimensions when provided.

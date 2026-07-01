@@ -11,10 +11,11 @@ Or as an installed entry point:
     mondrian-mcp
 """
 
-import base64
 from typing import Annotated, Literal
 
 from fastmcp import FastMCP
+from fastmcp.tools.base import ToolResult
+from fastmcp.utilities.types import Image
 from pydantic import Field
 
 from mondrian.compose import Density, compose
@@ -25,7 +26,7 @@ mcp = FastMCP(
     instructions=(
         "Generate Mondrian-style generative art for use in presentations. "
         "Use generate_mondrian to create PNG images with classic red, yellow, "
-        "blue, black, and white rectilinear compositions. "
+        "blue, and white rectilinear compositions. "
         "Choose a placement preset to get dimensions appropriate for common "
         "slide elements (header bands, side panels, full backgrounds)."
     ),
@@ -86,17 +87,17 @@ def generate_mondrian(
             ),
         ),
     ] = "normal",
-) -> dict:
+) -> ToolResult:
     """Generate a Mondrian-style rectilinear art composition as a PNG image.
 
-    Returns a dictionary with:
-    - 'png_base64': Base64-encoded PNG bytes of the generated art.
-    - 'seed': The integer seed used for generation. Pass this back to reproduce the same image.
-    - 'width': Actual canvas width in pixels.
-    - 'height': Actual canvas height in pixels.
+    Returns a ToolResult with:
+    - content[0]: MCP ImageContent block (type 'image', mimeType 'image/png') — the
+      generated art, base64-encoded by FastMCP automatically.
+    - structured_content: {'seed': int, 'width': int, 'height': int} — pass 'seed'
+      back to reproduce the same image.
 
     The classic Mondrian palette is always used: red (#c70000), yellow (#f4b600),
-    blue (#2d2bb4), black, and white (most common).
+    blue (#2d2bb4), and white (most common). Black appears only as grid line strokes.
     """
     resolved_w, resolved_h = resolve_dimensions(placement, width, height)
 
@@ -108,12 +109,14 @@ def generate_mondrian(
         output_format="png",
     )
 
-    return {
-        "png_base64": base64.b64encode(png_bytes).decode("ascii"),
-        "seed": used_seed,
-        "width": resolved_w,
-        "height": resolved_h,
-    }
+    return ToolResult(
+        content=[Image(data=png_bytes, format="png").to_image_content()],
+        structured_content={
+            "seed": used_seed,
+            "width": resolved_w,
+            "height": resolved_h,
+        },
+    )
 
 
 def main() -> None:
