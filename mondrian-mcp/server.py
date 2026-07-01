@@ -21,6 +21,13 @@ from pydantic import Field
 from mondrian.compose import Density, compose
 from mondrian.placements import Placement, resolve_dimensions
 
+# Presentation-oriented dimension bounds.
+# Floor: below 100px, Mondrian cells are too small to be visible.
+# Ceiling: 4096px covers 4K formats; beyond this, generation is slow
+# and the PNG payload becomes impractical for MCP transport.
+MIN_DIM = 100
+MAX_DIM = 4096
+
 mcp = FastMCP(
     name="mondrian-art",
     instructions=(
@@ -53,16 +60,26 @@ def generate_mondrian(
         int | None,
         Field(
             default=None,
-            description="Canvas width in pixels. Overrides the placement preset when provided.",
-            gt=0,
+            description=(
+                f"Canvas width in pixels ({MIN_DIM}–{MAX_DIM}). "
+                "Overrides the placement preset width when provided. "
+                "If both width and height are given, the placement preset is ignored entirely."
+            ),
+            ge=MIN_DIM,
+            le=MAX_DIM,
         ),
     ] = None,
     height: Annotated[
         int | None,
         Field(
             default=None,
-            description="Canvas height in pixels. Overrides the placement preset when provided.",
-            gt=0,
+            description=(
+                f"Canvas height in pixels ({MIN_DIM}–{MAX_DIM}). "
+                "Overrides the placement preset height when provided. "
+                "If both width and height are given, the placement preset is ignored entirely."
+            ),
+            ge=MIN_DIM,
+            le=MAX_DIM,
         ),
     ] = None,
     seed: Annotated[
@@ -100,6 +117,15 @@ def generate_mondrian(
     blue (#2d2bb4), and white (most common). Black appears only as grid line strokes.
     """
     resolved_w, resolved_h = resolve_dimensions(placement, width, height)
+
+    if not (MIN_DIM <= resolved_w <= MAX_DIM):
+        raise ValueError(
+            f"Width must be between {MIN_DIM} and {MAX_DIM} pixels. Got: {resolved_w}."
+        )
+    if not (MIN_DIM <= resolved_h <= MAX_DIM):
+        raise ValueError(
+            f"Height must be between {MIN_DIM} and {MAX_DIM} pixels. Got: {resolved_h}."
+        )
 
     png_bytes, used_seed = compose(
         width=resolved_w,

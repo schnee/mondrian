@@ -68,6 +68,38 @@ def test_custom_with_both_dimensions():
     assert (w, h) == (1280, 720)
 
 
+# --- Implicit free-form inference (both dims provided) ---
+
+def test_both_dims_with_named_preset_bypasses_preset():
+    """When both width and height are provided, the preset is ignored entirely."""
+    w, h = resolve_dimensions("square", width=800, height=600)
+    assert (w, h) == (800, 600)
+
+
+def test_both_dims_with_custom_placement_still_works():
+    """Both dims + placement='custom' hits the implicit path before custom error check."""
+    w, h = resolve_dimensions("custom", width=800, height=600)
+    assert (w, h) == (800, 600)
+
+
+def test_both_dims_with_header_band_bypasses_preset():
+    """Any named preset is bypassed when both dims are given."""
+    w, h = resolve_dimensions("header_band", width=1920, height=240)
+    assert (w, h) == (1920, 240)
+
+
+def test_one_dim_still_uses_preset_as_fallback():
+    """Only width provided — preset height is still used."""
+    w, h = resolve_dimensions("square", width=800)
+    assert (w, h) == (800, 400)
+
+
+def test_other_one_dim_still_uses_preset_as_fallback():
+    """Only height provided — preset width is still used."""
+    w, h = resolve_dimensions("square", height=300)
+    assert (w, h) == (400, 300)
+
+
 # --- Invalid placement ---
 
 def test_unknown_placement_raises():

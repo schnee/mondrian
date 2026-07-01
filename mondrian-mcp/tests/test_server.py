@@ -82,3 +82,54 @@ def test_explicit_dimensions_override_preset():
     img = PILImage.open(BytesIO(png_bytes))
     assert img.width == 200
     assert img.height == 100
+
+
+# --- Free-form dimensions (no placement="custom" required) ---
+
+def test_freeform_without_custom_placement():
+    """Providing width+height without placement='custom' should work."""
+    result = call_tool({"width": 1200, "height": 628, "seed": 1})
+    sc = result.structured_content
+    assert sc["width"] == 1200
+    assert sc["height"] == 628
+    png_bytes = base64.b64decode(result.content[0].data)
+    img = PILImage.open(BytesIO(png_bytes))
+    assert img.width == 1200
+    assert img.height == 628
+
+
+# --- Dimension validation ---
+
+def test_width_below_minimum_is_rejected():
+    """Width below MIN_DIM must produce a validation error."""
+    # FastMCP validates ge=100 via Pydantic before the function body runs.
+    with pytest.raises(Exception, match="greater_than_equal|Width must be between"):
+        call_tool({"width": 50, "height": 400})
+
+
+def test_height_above_maximum_is_rejected():
+    """Height above MAX_DIM must produce a validation error."""
+    # FastMCP validates le=4096 via Pydantic before the function body runs.
+    with pytest.raises(Exception, match="less_than_equal|Height must be between"):
+        call_tool({"width": 400, "height": 5000})
+
+
+def test_boundary_min_dimensions_accepted():
+    """Exactly MIN_DIM (100) on both axes must be accepted."""
+    result = call_tool({"width": 100, "height": 100, "seed": 1})
+    assert result.structured_content["width"] == 100
+    assert result.structured_content["height"] == 100
+
+
+def test_boundary_max_dimensions_accepted():
+    """Exactly MAX_DIM (4096) on both axes must be accepted."""
+    result = call_tool({"width": 4096, "height": 4096, "seed": 1})
+    assert result.structured_content["width"] == 4096
+    assert result.structured_content["height"] == 4096
+
+
+def test_preset_dimensions_are_implicitly_valid():
+    """All named presets should pass validation without error."""
+    for placement in ("header_band", "left_panel", "full_bleed", "square"):
+        result = call_tool({"placement": placement, "seed": 1})
+        assert result.structured_content is not None

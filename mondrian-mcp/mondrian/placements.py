@@ -38,6 +38,12 @@ def resolve_dimensions(
         ValueError: If placement is 'custom' and width or height is missing.
         ValueError: If placement is not a recognized preset.
     """
+    # When both dimensions are explicitly provided, use them directly regardless
+    # of placement. This makes free-form sizing work without requiring
+    # placement="custom" — providing both width and height implies custom intent.
+    if width is not None and height is not None:
+        return width, height
+
     if placement == "custom":
         if width is None or height is None:
             raise ValueError(
